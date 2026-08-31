@@ -1,0 +1,147 @@
+From: PCF4N bring-up <pcf4n@example.invalid>
+Subject: [PATCH] arm64: mark the earliest PCF4N BL33 boundaries
+
+BL31 reaches ERET to the correct U-Boot entry but U-Boot proper emits no
+banner.  Use the UART1 instance already initialized by BL31 to emit single
+letters before a stack exists, including immediately before and after SError
+unmasking.  Add named board-init markers once a C stack is available.
+
+The resulting sequence is documented as the PCF4N BL33 early markers:
+  A reset entry; B save_boot_params return; C before SError unmask;
+  D after SError unmask; E architectural setup complete; F before _main.
+---
+ arch/arm/cpu/armv8/start.S | 28 ++++++++++++++++++++++++++++
+ common/board_f.c           | 24 ++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+)
+
+diff --git a/arch/arm/cpu/armv8/start.S b/arch/arm/cpu/armv8/start.S
+index 8c1e4bb19..4832d1b5b 100644
+--- a/arch/arm/cpu/armv8/start.S
++++ b/arch/arm/cpu/armv8/start.S
+@@ -45,10 +45,26 @@ _bss_end_ofs:
+ 	.quad	__bss_end - _start
+ 
++#if !defined(CONFIG_XPL_BUILD)
++.macro	pcf4n_uart_mark, value
++	ldr	x16, =0x10c02100
++99:	ldr	w17, [x16, #0x14]
++	tbz	w17, #5, 99b
++	mov	w17, #\value
++	str	w17, [x16]
++.endm
++#endif
++
+ reset:
++#if !defined(CONFIG_XPL_BUILD)
++	pcf4n_uart_mark 0x41
++#endif
+ 	/* Allow the board to save important registers */
+ 	b	save_boot_params
+ .globl	save_boot_params_ret
+ save_boot_params_ret:
++#if !defined(CONFIG_XPL_BUILD)
++	pcf4n_uart_mark 0x42
++#endif
+ 
+ #if CONFIG_POSITION_INDEPENDENT && !defined(CONFIG_XPL_BUILD)
+ 	/* Verify that we're 4K aligned.  */
+@@ -119,9 +135,15 @@ pie_fixup_done:
+ 	b	0f
+ 1:	set_vbar vbar_el1, x0
+ 	mov	x0, #3 << 20
+ 	msr	cpacr_el1, x0			/* Enable FP/SIMD */
+ 0:
++#if !defined(CONFIG_XPL_BUILD)
++	pcf4n_uart_mark 0x43
++#endif
+ 	msr	daifclr, #0x4			/* Unmask SError interrupts */
++#if !defined(CONFIG_XPL_BUILD)
++	pcf4n_uart_mark 0x44
++#endif
+ 
+ #if CONFIG_COUNTER_FREQUENCY
+ 	branch_if_not_highest_el x0, 4f
+@@ -129,6 +151,9 @@ pie_fixup_done:
+ 
+ 4:	isb
+ 
++#if !defined(CONFIG_XPL_BUILD)
++	pcf4n_uart_mark 0x45
++#endif
+ 	/*
+ 	 * Enable SMPEN bit for coherency.
+ 	 * This register is not architectural but at the moment
+@@ -200,6 +225,9 @@ slave_cpu:
+ #endif /* CONFIG_ARMV8_MULTIENTRY */
+ master_cpu:
+ 	msr	SPSel, #1		/* make sure we use SP_ELx */
++#if !defined(CONFIG_XPL_BUILD)
++	pcf4n_uart_mark 0x46
++#endif
+ 	bl	_main
+ 
+ /*-----------------------------------------------------------------------*/
+diff --git a/common/board_f.c b/common/board_f.c
+index 3dc12041f..63e8300e8 100644
+--- a/common/board_f.c
++++ b/common/board_f.c
+@@ -889,15 +889,34 @@ static int initf_dm(void)
+ 	return 0;
+ }
+ 
++#if !defined(CONFIG_XPL_BUILD)
++static void pcf4n_early_uart_puts(const char *text)
++{
++	void __iomem *uart = (void __iomem *)0x10c02100UL;
++
++	while (*text) {
++		while (!(readl(uart + 0x14) & BIT(5)))
++			;
++		writel(*text++, uart);
++	}
++}
++#else
++static inline void pcf4n_early_uart_puts(const char *text)
++{
++}
++#endif
++
+ static void initcall_run_f(void)
+ {
+ 	/*
+ 	 * Please do not add logic to this function (variables, if (), etc.).
+ 	 * For simplicity it should remain an ordered list of function calls.
+ 	 */
++	pcf4n_early_uart_puts("[f0]");
+ 	INITCALL(setup_mon_len);
+ #if CONFIG_IS_ENABLED(OF_CONTROL)
+ 	INITCALL(fdtdec_setup);
++	pcf4n_early_uart_puts("[fdt]");
+ #endif
+ #if CONFIG_IS_ENABLED(TRACE_EARLY)
+ 	INITCALL(trace_early_init);
+@@ -913,8 +932,10 @@ static void initcall_run_f(void)
+ #endif
+ 	INITCALL_EVT(EVT_FSP_INIT_F);
+ 	INITCALL(arch_cpu_init);	/* basic arch cpu dependent setup */
++	pcf4n_early_uart_puts("[cpu]");
+ 	INITCALL(mach_cpu_init);	/* SoC/machine dependent CPU setup */
+ 	INITCALL(initf_dm);
++	pcf4n_early_uart_puts("[dm]");
+ #if CONFIG_IS_ENABLED(BOARD_EARLY_INIT_F)
+ 	INITCALL(board_early_init_f);
+ #endif
+@@ -929,8 +950,11 @@ static void initcall_run_f(void)
+ #endif
+ 	INITCALL(env_init);		/* initialize environment */
+ 	INITCALL(init_baud_rate);	/* initialze baudrate settings */
++	pcf4n_early_uart_puts("[serial>]");
+ 	INITCALL(serial_init);		/* serial communications setup */
++	pcf4n_early_uart_puts("[serial<]");
+ 	INITCALL(console_init_f);	/* stage 1 init of console */
++	pcf4n_early_uart_puts("[console]");
+ 	INITCALL(display_options);	/* say that we are here */
+ 	INITCALL(display_text_info);	/* show debugging info if required */
+ 	INITCALL(checkcpu);
+-- 
+2.39.5

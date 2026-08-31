@@ -1,0 +1,10 @@
+#!/bin/sh
+
+case "$1" in
+  start)
+    mountpoint -q /sys/kernel/debug || mount -t debugfs debugfs /sys/kernel/debug
+    echo "PCF4N HPS recovery system"
+    ;;
+esac
+
+exit 0

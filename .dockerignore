@@ -1,0 +1,6 @@
+.git
+.work
+output
+config/remote.env
+*.log
+.DS_Store

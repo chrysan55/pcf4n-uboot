@@ -1,0 +1,142 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+#include "socfpga_agilex5.dtsi"
+
+/ {
+	model = "PCF4N Agilex 5 DPU";
+	compatible = "pcf4n,agilex5-dpu", "intel,socfpga-agilex5";
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+		ethernet0 = &gmac2;
+		i2c0 = &i2c0;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i3c0 = &i3c0;
+		i3c1 = &i3c1;
+		usb0 = &usb0;
+		usb1 = &usb31;
+	};
+
+	chosen {
+		/* UART1 reaches USB Type-C during board bring-up. */
+		stdout-path = "serial1:115200n8";
+	};
+
+	emmc_pwrseq: emmc-pwrseq {
+		compatible = "mmc-pwrseq-emmc";
+		/* HPS GPIO27 is GPIO1/port B line 3; eMMC reset is active low. */
+		reset-gpios = <&portb 3 GPIO_ACTIVE_LOW>;
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		/* U-Boot replaces the size from the Quartus handoff. */
+		reg = <0x0 0x80000000 0x0 0x0>;
+	};
+};
+
+&gmac0 {
+	status = "disabled";
+};
+
+&gmac1 {
+	status = "disabled";
+};
+
+&gmac2 {
+	status = "okay";
+	phy-mode = "rgmii";
+	phy-handle = <&emac2_phy1>;
+	max-frame-size = <9000>;
+
+	mdio0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "snps,dwmac-mdio";
+
+		emac2_phy1: ethernet-phy@1 {
+			reg = <1>;
+		};
+	};
+};
+
+&i2c0 {
+	/* Optical module 0 management. */
+	status = "okay";
+};
+
+&i2c2 {
+	/* I2C_EMAC0 is wired as the board power-management bus. */
+	status = "okay";
+};
+
+&i2c3 {
+	/* I2C_EMAC1 is wired to optical module 1 management. */
+	status = "okay";
+};
+
+&i2c4 {
+	/* I2C_EMAC2 shares pins with MDIO2; EMAC2 PHY management owns them. */
+	status = "disabled";
+};
+
+&i3c0 {
+	/* Optical module 2 is a legacy-I2C target on this controller. */
+	i2c-scl-hz = <100000>;
+	status = "okay";
+};
+
+&i3c1 {
+	/* Optical module 3 is a legacy-I2C target on this controller. */
+	i2c-scl-hz = <100000>;
+	status = "okay";
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&mmc {
+	status = "okay";
+	bus-width = <4>;
+	non-removable;
+	no-sd;
+	no-sdio;
+	cap-mmc-highspeed;
+	mmc-pwrseq = <&emmc_pwrseq>;
+	max-frequency = <52000000>;
+};
+
+&osc1 {
+	clock-frequency = <25000000>;
+};
+
+&qspi {
+	status = "okay";
+
+	flash@0 {
+		compatible = "macronix,mx25u51245g", "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+	};
+};
+
+&smmu {
+	status = "okay";
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&uart1 {
+	status = "okay";
+};
+
+&watchdog0 {
+	status = "okay";
+};

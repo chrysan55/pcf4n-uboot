@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: GPL-2.0+
+
+#include "socfpga_agilex5-u-boot.dtsi"
+
+/ {
+	aliases {
+		spi0 = &qspi;
+	};
+
+	chosen {
+		stdout-path = "serial1:115200n8";
+		u-boot,spl-boot-order = &flash0;
+	};
+};
+
+&emmc_pwrseq {
+	bootph-all;
+};
+
+&flash0 {
+	bootph-all;
+	/delete-property/ cdns,read-delay;
+};
+
+&mmc {
+	bootph-all;
+};
+
+&gpio1 {
+	bootph-all;
+
+	portb: gpio-controller@0 {
+		bootph-all;
+	};
+};
+
+&qspi {
+	bootph-all;
+};
+
+&uart1 {
+	bootph-all;
+};
+
+#if !defined(CONFIG_SOCFPGA_SECURE_VAB_AUTH)
+&fdt_0_blob {
+	filename = "arch/arm/dts/socfpga_agilex5_pcf4n.dtb";
+};
+
+&binman {
+	/delete-node/ kernel;
+};
+#endif

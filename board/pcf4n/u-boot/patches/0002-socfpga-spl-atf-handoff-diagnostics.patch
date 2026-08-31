@@ -1,0 +1,82 @@
+From: PCF4N bring-up <pcf4n@example.invalid>
+Subject: [PATCH] spl: expose the PCF4N BL31 handoff boundary
+
+The FPGA-first QSPI path can load and verify every FIT component, but the
+board may then reset before U-Boot proper prints its banner.  Add concise
+checkpoints around the SoCFPGA fixups, FIT FDT fixup, and final BL31 call so
+UART1 identifies the last completed boundary and the exact addresses used.
+---
+ arch/arm/mach-socfpga/spl_soc64.c | 5 ++++-
+ common/spl/spl.c                  | 5 +++++
+ common/spl/spl_atf.c              | 3 +++
+ 3 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm/mach-socfpga/spl_soc64.c b/arch/arm/mach-socfpga/spl_soc64.c
+index 6e1512a5..dfb0d001 100644
+--- a/arch/arm/mach-socfpga/spl_soc64.c
++++ b/arch/arm/mach-socfpga/spl_soc64.c
+@@ -142,13 +142,16 @@ void spl_perform_arch_fixups(struct spl_image_info *spl_image)
+ 	int ret;
+ 	struct udevice *dev;
+ 
++	puts("SPL: applying HPS SMMU handoff fixup\n");
+ 	ret = uclass_get_device_by_name(UCLASS_NOP, "socfpga-smmu-secure-config", &dev);
+ 	if (ret) {
+ 		printf("HPS SMMU secure settings init failed: %d\n", ret);
+ 		hang();
+ 	}
++	puts("SPL: HPS SMMU handoff fixup complete\n");
+ 
+ #if !(IS_ENABLED(CONFIG_TARGET_SOCFPGA_AGILEX5_SIMICS) || IS_ENABLED(CONFIG_TARGET_SOCFPGA_AGILEX5_EMU))
+-	mbox_hps_stage_notify(HPS_EXECUTION_STATE_SSBL);
++	ret = mbox_hps_stage_notify(HPS_EXECUTION_STATE_SSBL);
++	printf("SPL: SDM SSBL-stage notification returned %d\n", ret);
+ #endif
+ }
+diff --git a/common/spl/spl.c b/common/spl/spl.c
+index 1503b19b..fd131de8 100644
+--- a/common/spl/spl.c
++++ b/common/spl/spl.c
+@@ -776,11 +776,14 @@ void board_init_r(gd_t *dummy1, ulong dummy2)
+ 	if (ret) {
+ 		if (CONFIG_IS_ENABLED(SHOW_ERRORS))
+ 			printf(PHASE_PROMPT "failed to boot from all boot devices (err=%d)\n",
+ 			       ret);
+ 		else
+ 			puts(PHASE_PROMPT "failed to boot from all boot devices\n");
+ 		hang();
+ 	}
+ 
++	printf("SPL: FIT load complete: os=%u entry=0x%lx fdt=%p\n",
++	       spl_image.os, spl_image.entry_point,
++	       spl_image_fdt_addr(&spl_image));
+ 	spl_perform_arch_fixups(&spl_image);
+ 	spl_perform_board_fixups(&spl_image);
+@@ -788,9 +791,11 @@ void board_init_r(gd_t *dummy1, ulong dummy2)
+ 	os = spl_image.os;
+ 	if (os == IH_OS_U_BOOT) {
+ 		debug("Jumping to %s...\n", xpl_name(xpl_next_phase()));
+ 	} else if (CONFIG_IS_ENABLED(ATF) && os == IH_OS_ARM_TRUSTED_FIRMWARE) {
+ 		debug("Jumping to U-Boot via ARM Trusted Firmware\n");
++		puts("SPL: applying FIT FDT fixup before BL31\n");
+ 		spl_fixup_fdt(spl_image_fdt_addr(&spl_image));
++		puts("SPL: FIT FDT fixup complete\n");
+ 		jumper = &spl_invoke_atf;
+ 	} else if (CONFIG_IS_ENABLED(OPTEE_IMAGE) && os == IH_OS_TEE) {
+ 		debug("Jumping to U-Boot via OP-TEE\n");
+diff --git a/common/spl/spl_atf.c b/common/spl/spl_atf.c
+index 7ccaa3ce..1fa41629 100644
+--- a/common/spl/spl_atf.c
++++ b/common/spl/spl_atf.c
+@@ -291,6 +291,9 @@ void __noreturn spl_invoke_atf(struct spl_image_info *spl_image)
+ 	 * We don't provide a BL3-2 entry yet, but this will be possible
+ 	 * using similar logic.
+ 	 */
++	printf("SPL: entering BL31: bl31=0x%lx bl32=0x%lx bl33=0x%lx "
++	       "fit-fdt=%p platform=0x%lx\n", spl_image->entry_point,
++	       bl32_entry, bl33_entry, blob, platform_param);
+ 	bl31_entry(spl_image->entry_point, bl32_entry,
+ 		   bl33_entry, platform_param);
+ }
+-- 
+2.39.5

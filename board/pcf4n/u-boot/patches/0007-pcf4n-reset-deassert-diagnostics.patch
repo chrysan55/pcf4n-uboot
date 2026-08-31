@@ -1,0 +1,58 @@
+From: PCF4N bring-up <pcf4n@example.invalid>
+Subject: [PATCH] reset: trace PCF4N peripheral deassert results
+
+The first timer lookup occurs inside the reset driver's timed wait while the
+Cadence MMC driver deasserts COMBOPHY, SDMMC OCP, and SDMMC resets.  Print the
+reset ID, register value, and result so a working timer cannot hide a reset
+which never clears.
+---
+ drivers/reset/reset-socfpga.c | 25 ++++++++++++++++++++-----
+ 1 file changed, 20 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/reset/reset-socfpga.c b/drivers/reset/reset-socfpga.c
+index 559fe869..7063c706 100644
+--- a/drivers/reset/reset-socfpga.c
++++ b/drivers/reset/reset-socfpga.c
+@@ -15,6 +15,7 @@
+ #include <dm.h>
+ #include <log.h>
+ #include <malloc.h>
++#include <dm/device_compat.h>
+ #include <dm/lists.h>
+ #include <dm/of_access.h>
+ #include <env.h>
+@@ -86,16 +87,30 @@ static int socfpga_reset_assert(struct reset_ctl *reset_ctl)
+ static int socfpga_reset_deassert(struct reset_ctl *reset_ctl)
+ {
+ 	struct socfpga_reset_data *data = dev_get_priv(reset_ctl->dev);
++	bool pcf4n_diag = of_machine_is_compatible("pcf4n,agilex5-dpu");
+ 	int id = reset_ctl->id;
+ 	int reg_width = sizeof(u32);
+ 	int bank = id / (reg_width * BITS_PER_BYTE);
+ 	int offset = id % (reg_width * BITS_PER_BYTE);
++	void __iomem *reg = data->modrst_base + (bank * BANK_INCREMENT);
++	u32 before = 0, after;
++	int ret;
++
++	if (pcf4n_diag) {
++		before = readl(reg);
++		printf("[rst:id=%d,before=%08x>]", id, before);
++	}
+ 
+-	clrbits_le32(data->modrst_base + (bank * BANK_INCREMENT), BIT(offset));
++	clrbits_le32(reg, BIT(offset));
++
++	ret = wait_for_bit_le32(reg, BIT(offset), false, 500, false);
++	if (pcf4n_diag) {
++		after = readl(reg);
++		printf("[rst:id=%d,ret=%d,%08x>%08x]", id, ret,
++		       before, after);
++	}
+ 
+-	return wait_for_bit_le32(data->modrst_base + (bank * BANK_INCREMENT),
+-				 BIT(offset),
+-				 false, 500, false);
++	return ret;
+ }
+ 
+ static const struct reset_ops socfpga_reset_ops = {

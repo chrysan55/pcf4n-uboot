@@ -1,0 +1,78 @@
+# Rendered by scripts/build-uboot.sh. Tokens beginning with @ are mandatory.
+CONFIG_DEFAULT_DEVICE_TREE="socfpga_agilex5_pcf4n"
+CONFIG_OF_LIST="socfpga_agilex5_pcf4n"
+CONFIG_IDENT_STRING=" pcf4n-@BUILD_KIND@"
+CONFIG_LOCALVERSION="-pcf4n-arch-timer-mmc-diag"
+CONFIG_LOCALVERSION_AUTO=n
+
+# Agilex 5 already exposes the mandatory ARMv8 architected counter and BL31
+# hands it to BL33.  Do not enable the driver-model timer uclass here: its
+# first get_timer() is reached while the MMC driver is deasserting reset ID 6,
+# and selecting the still-reset APB timer2 makes that reset wait depend on the
+# timer whose reset has not been released. With the driver-model timer uclass
+# disabled, get_ticks()/get_tbclk() use CNTPCT_EL0/CNTFRQ_EL0 directly.
+CONFIG_TIMER=n
+CONFIG_DESIGNWARE_APB_TIMER=n
+
+# The Altera base defconfig enables its Simics-only target. PCF4N is physical
+# hardware, so retain the real-hardware watchdog/mailbox paths and make SPL
+# boot failures identify the numeric device/error during bring-up.
+CONFIG_TARGET_SOCFPGA_AGILEX5_SIMICS=n
+CONFIG_SPL_SHOW_ERRORS=y
+CONFIG_SPL_FIT_PRINT=y
+
+# The second stage is stored in QSPI. Do not silently fall back to parsing an
+# arbitrary DDR address as a preloaded image when QSPI probing fails.
+CONFIG_SPL_RAM_DEVICE=n
+CONFIG_SPL_RAM_SUPPORT=n
+
+CONFIG_QSPI_BOOT=y
+CONFIG_SYS_SPI_U_BOOT_OFFS=@QSPI_UBOOT_OFFSET@
+CONFIG_SPI_FLASH_MACRONIX=y
+CONFIG_SPI_FLASH_MTD=y
+
+CONFIG_ENV_IS_IN_FAT=n
+CONFIG_ENV_IS_IN_UBI=n
+CONFIG_ENV_IS_NOWHERE=y
+
+CONFIG_DISTRO_DEFAULTS=n
+CONFIG_HUSH_PARSER=y
+CONFIG_SYS_PROMPT_HUSH_PS2="> "
+CONFIG_BOOTDELAY=3
+CONFIG_USE_BOOTCOMMAND=y
+CONFIG_BOOTFILE="@TFTP_PREFIX@/provision.scr"
+CONFIG_BOOTCOMMAND="setenv ethaddr @LOCAL_MAC_ADDRESS@; setenv autoload no; if dhcp; then if tftp @SCRIPT_ADDRESS@ ${bootfile}; then source @SCRIPT_ADDRESS@; fi; fi; echo Provisioning stopped - inspect errors and remain at the U-Boot prompt"
+
+CONFIG_NET=y
+CONFIG_CMD_DHCP=y
+CONFIG_CMD_TFTPBOOT=y
+CONFIG_CMD_WGET=y
+CONFIG_CMD_PING=y
+CONFIG_CMD_MII=y
+CONFIG_CMD_MDIO=y
+CONFIG_PHY_REALTEK=y
+
+CONFIG_MMC=y
+CONFIG_MMC_WRITE=y
+CONFIG_PWRSEQ=y
+CONFIG_SPL_PWRSEQ=y
+CONFIG_MMC_PWRSEQ=y
+CONFIG_SPL_MMC_PWRSEQ=y
+CONFIG_CMD_MMC=y
+CONFIG_CMD_GPT=y
+CONFIG_CMD_PART=y
+CONFIG_PARTITION_UUIDS=y
+
+CONFIG_CMD_HASH=y
+CONFIG_HASH=y
+CONFIG_SHA256=y
+CONFIG_CMD_IMPORTENV=y
+CONFIG_CMD_SOURCE=y
+
+CONFIG_NAND_BOOT=n
+CONFIG_SPL_NAND_SUPPORT=n
+CONFIG_CMD_NAND=n
+CONFIG_MTD_RAW_NAND=n
+CONFIG_CMD_UBI=n
+CONFIG_CMD_UBIFS=n
+CONFIG_MTD_UBI=n

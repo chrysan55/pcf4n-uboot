@@ -1,0 +1,43 @@
+/dts-v1/;
+
+/ {
+	description = "PCF4N HPS kernel FIT";
+	#address-cells = <2>;
+
+	images {
+		kernel {
+			description = "Altera 26.1 Linux Image";
+			data = /incbin/("@IMAGE_GZ@");
+			type = "kernel";
+			arch = "arm64";
+			os = "linux";
+			compression = "gzip";
+			load = <0x0 @KERNEL_LOAD_ADDRESS@>;
+			entry = <0x0 @KERNEL_LOAD_ADDRESS@>;
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-pcf4n {
+			description = "PCF4N board device tree";
+			data = /incbin/("@DTB@");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+	};
+
+	configurations {
+		default = "conf-pcf4n";
+
+		conf-pcf4n {
+			description = "PCF4N kernel and DTB (no FPGA RBF)";
+			kernel = "kernel";
+			fdt = "fdt-pcf4n";
+		};
+	};
+};

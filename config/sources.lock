@@ -1,0 +1,6 @@
+# Generated from config/versions.env by scripts/update-lock.sh.
+# Full object IDs make the checkout independent of moving branches.
+UBOOT_COMMIT=6e59447316d06b25ca98caaa5c16787f5c74e862
+LINUX_COMMIT=b2496f2fcb06db4d598d0073ad0e9e9be99b9288
+ATF_COMMIT=4a4b4573e12fabd0a88e95952af49840db6b770d
+BUILDROOT_COMMIT=52ee2f5644da5389634b2465f1dc31deb5a4807c

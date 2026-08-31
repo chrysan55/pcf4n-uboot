@@ -1,0 +1,6 @@
+/.work/
+/output/
+/config/remote.env
+/.env
+*.log
+.DS_Store

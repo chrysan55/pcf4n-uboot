@@ -1,0 +1,47 @@
+From: PCF4N bring-up <pcf4n@example.invalid>
+Subject: [PATCH] serial: preserve live PCF4N UART1 reset state in proper
+
+SPL and BL31 already initialize UART1, and raw EL2 diagnostics prove the port
+is live when U-Boot proper starts.  The driver reaches its probe and then
+stops in the generic reset get/deassert path.  Avoid that redundant operation
+only for the PCF4N UART1 proper-stage instance.  SPL retains the original reset
+path.  Keep detailed reset markers for every other instance.
+---
+ drivers/serial/ns16550.c | 25 +++++++++++++++++++------
+ 1 file changed, 19 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/serial/ns16550.c b/drivers/serial/ns16550.c
+index 75a41749..ab4df96b 100644
+--- a/drivers/serial/ns16550.c
++++ b/drivers/serial/ns16550.c
+@@ -561,9 +561,22 @@ int ns16550_serial_probe(struct udevice *dev)
+ 
+-	ret = reset_get_bulk(dev, &reset_bulk);
+-	if (!ret)
+-		ret = reset_deassert_bulk(&reset_bulk);
+-	pcf4n_uart_diag_puts("[rst=");
+-	pcf4n_uart_diag_hex(ret);
+-	pcf4n_uart_diag_puts("]");
++#if defined(CONFIG_TARGET_SOCFPGA_AGILEX5) && !defined(CONFIG_XPL_BUILD)
++	if (plat->base == PCF4N_EARLY_UART1_BASE) {
++		pcf4n_uart_diag_puts("[rst-skip]");
++	} else
++#endif
++	{
++		pcf4n_uart_diag_puts("[rget>]");
++		ret = reset_get_bulk(dev, &reset_bulk);
++		pcf4n_uart_diag_puts("[rget=");
++		pcf4n_uart_diag_hex(ret);
++		pcf4n_uart_diag_puts("]");
++		if (!ret) {
++			pcf4n_uart_diag_puts("[rde>]");
++			ret = reset_deassert_bulk(&reset_bulk);
++			pcf4n_uart_diag_puts("[rde=");
++			pcf4n_uart_diag_hex(ret);
++			pcf4n_uart_diag_puts("]");
++		}
++	}
+ 
+ 	com_port->plat = dev_get_plat(dev);
+-- 
+2.39.5

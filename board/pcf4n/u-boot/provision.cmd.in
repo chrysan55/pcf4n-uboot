@@ -1,0 +1,108 @@
+# PCF4N deterministic eMMC provisioning script.
+# Every failure sets provision_failed and falls through to the U-Boot prompt.
+
+setenv provision_failed 0
+setenv autoload no
+setenv ethaddr @LOCAL_MAC_ADDRESS@
+
+echo "PCF4N: requesting network configuration"
+if dhcp; then
+    echo "PCF4N: DHCP complete"
+else
+    echo "ERROR: DHCP failed"
+    setenv provision_failed 1
+fi
+
+if test "${provision_failed}" = "0"; then
+    echo "PCF4N: downloading manifest"
+    if tftp @MANIFEST_ADDRESS@ @TFTP_PREFIX@/manifest.env; then
+        env import -t @MANIFEST_ADDRESS@ ${filesize}
+    else
+        echo "ERROR: manifest download failed"
+        setenv provision_failed 1
+    fi
+fi
+
+if test "${provision_failed}" = "0"; then
+    echo "PCF4N: downloading rootfs"
+    if tftp @ROOTFS_ADDRESS@ @TFTP_PREFIX@/${rootfs_file}; then
+        setenv rootfs_download_size ${filesize}
+        hash sha256 @ROOTFS_ADDRESS@ ${rootfs_download_size} rootfs_actual_sha256
+        if test "${rootfs_actual_sha256}" != "${rootfs_sha256}"; then
+            echo "ERROR: rootfs SHA-256 mismatch"
+            setenv provision_failed 1
+        fi
+    else
+        echo "ERROR: rootfs download failed"
+        setenv provision_failed 1
+    fi
+fi
+
+if test "${provision_failed}" = "0"; then
+    echo "PCF4N: downloading kernel FIT"
+    if tftp @KERNEL_ITB_ADDRESS@ @TFTP_PREFIX@/${kernel_file}; then
+        setenv kernel_download_size ${filesize}
+        hash sha256 @KERNEL_ITB_ADDRESS@ ${kernel_download_size} kernel_actual_sha256
+        if test "${kernel_actual_sha256}" != "${kernel_sha256}"; then
+            echo "ERROR: kernel SHA-256 mismatch"
+            setenv provision_failed 1
+        fi
+    else
+        echo "ERROR: kernel download failed"
+        setenv provision_failed 1
+    fi
+fi
+
+if test "${provision_failed}" = "0"; then
+    echo "PCF4N: initializing eMMC"
+    if mmc dev @EMMC_DEVICE@ && mmc rescan; then
+        setenv gpt_parts 'uuid_disk=@GPT_DISK_UUID@;name=kernel,start=1M,size=64M,uuid=@GPT_KERNEL_UUID@;name=rootfs,start=65M,size=1024M,uuid=@GPT_ROOTFS_UUID@'
+        if gpt write mmc @EMMC_DEVICE@ "${gpt_parts}"; then
+            part start mmc @EMMC_DEVICE@ rootfs rootfs_lba
+            part size mmc @EMMC_DEVICE@ rootfs rootfs_partition_blocks
+            part start mmc @EMMC_DEVICE@ kernel kernel_lba
+            part size mmc @EMMC_DEVICE@ kernel kernel_partition_blocks
+        else
+            echo "ERROR: GPT write failed"
+            setenv provision_failed 1
+        fi
+    else
+        echo "ERROR: eMMC initialization failed"
+        setenv provision_failed 1
+    fi
+fi
+
+if test "${provision_failed}" = "0"; then
+    setexpr rootfs_blocks ${rootfs_download_size} + 0x1ff
+    setexpr rootfs_blocks ${rootfs_blocks} / 0x200
+    if test ${rootfs_blocks} -gt ${rootfs_partition_blocks}; then
+        echo "ERROR: rootfs is larger than its eMMC partition"
+        setenv provision_failed 1
+    elif mmc write @ROOTFS_ADDRESS@ ${rootfs_lba} ${rootfs_blocks}; then
+        echo "PCF4N: rootfs written"
+    else
+        echo "ERROR: rootfs write failed"
+        setenv provision_failed 1
+    fi
+fi
+
+if test "${provision_failed}" = "0"; then
+    setexpr kernel_blocks ${kernel_download_size} + 0x1ff
+    setexpr kernel_blocks ${kernel_blocks} / 0x200
+    if test ${kernel_blocks} -gt ${kernel_partition_blocks}; then
+        echo "ERROR: kernel FIT is larger than its eMMC partition"
+        setenv provision_failed 1
+    elif mmc write @KERNEL_ITB_ADDRESS@ ${kernel_lba} ${kernel_blocks}; then
+        echo "PCF4N: kernel written last; starting verified in-memory FIT"
+    else
+        echo "ERROR: kernel write failed"
+        setenv provision_failed 1
+    fi
+fi
+
+if test "${provision_failed}" = "0"; then
+    setenv bootargs 'console=ttyS1,115200 earlycon=uart8250,mmio32,0x10c02100,115200n8 root=PARTUUID=@GPT_ROOTFS_UUID@ rw rootwait panic=-1'
+    bootm @KERNEL_ITB_ADDRESS@#conf-pcf4n
+fi
+
+echo "PCF4N provisioning failed or returned; staying at U-Boot prompt"

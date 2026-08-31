@@ -1,0 +1,3 @@
+# Patch artifacts contain an embedded diff. Context markers and format-patch
+# signatures look like whitespace errors to an outer initial-commit diff.
+*.patch whitespace=-trailing-space,-space-before-tab
