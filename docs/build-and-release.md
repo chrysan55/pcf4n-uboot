@@ -99,17 +99,36 @@ mixed with a new external-toolchain build.
 - Confirm the Macronix flash loader/device selection supported by Quartus.
 - Record the SPL banner timestamp and SHA-256 from the exact HEX embedded in
   the final JIC; do not select an older handoff directory by filename alone.
-- For the current timer/MMC boundary diagnostic build, require the SPL and
-  U-Boot banners to contain `pcf4n-arch-timer-mmc-diag`; an earlier
-  `pcf4n-timer-mmc-diag`, `pcf4n-arch-timer-diag`,
+- For the current stock-driver/DTS-clock build, require the SPL and U-Boot
+  banners to contain `pcf4n-emmc4-hs52-dt50`; an earlier
+  `pcf4n-linuxphy400k-diag`,
+  `pcf4n-vccq1v8-init74-diag`,
+  `pcf4n-reset100ms-cmd1-phyobs-diag`, `pcf4n-reset100ms-sdprobe-raw-diag`,
+  `pcf4n-reset10ms-sdprobe-raw-diag`, `pcf4n-reset10ms-initcmd-diag`,
+  `pcf4n-reset10ms-cmd1-diag`, `pcf4n-cmd1-diag`,
+  `pcf4n-emmc-reset-diag`,
+  `pcf4n-arch-timer-mmc-diag`, `pcf4n-timer-mmc-diag`,
+  `pcf4n-arch-timer-diag`,
   `pcf4n-timer2-diag`, `pcf4n-uart1-preserve-diag`,
   `pcf4n-uart1-probe-diag`, `pcf4n-bl33-entry-diag`, `pcf4n-handoff-diag`, or
   plain `2026.01-g<commit>` banner is stale. BL31 preflight output, raw U-Boot
   entry markers, and successful UART1 probe markers must precede the U-Boot
-  proper banner. Capture the complete marker sequence beginning at `MMC:`;
-  the final completed marker is the evidence used to distinguish peripheral
-  reset, Cadence PHY, and SDHCI failures. This build intentionally uses the
-  ARMv8 architected counter rather than APB timer2.
+  proper banner. This build intentionally uses the ARMv8 architected counter
+  rather than APB timer2.
+
+  For eMMC validation, require `mmc rescan` to return success and `mmc info` to
+  report manufacturer ID `15`, product `AJTD4R`, 14.6 GiB capacity and
+  `Bus Width: 4-bit`. Read at least one known block and compare it with the
+  expected data. Probe GPIO27 RESET_n only if the normal board power-on reset
+  remains in question; this build does not execute the DT `mmc-pwrseq` node.
+
+  The candidate models VCC=3.3 V and VCCQ=1.8 V, masks
+  `SDHCI_CAN_DO_8BIT`, and enables four-bit MMC HS52 without HS200/HS400. It
+  uses the locked Altera eMMC-variant Legacy/SDR PHY tables. It deliberately
+  retains the original U-Boot SD-probe fallback and PHY_CTRL handling. The DTS
+  masks the incorrect 200 MHz SDHCI base-clock field and substitutes 50 MHz,
+  allowing the original divider code to generate the true CIU rate. Require
+  final `CLOCK_CONTROL=0x0007` and an approximately 50 MHz measured pin clock.
 - Package `output/qspi-handoff/` with the source `build-manifest.json`.
 - Preserve the final `.pfg`, `.jic`, map file, and hashes alongside this build.
 - Preserve the final `.qsf`, HPS/EMIF handoff, and Quartus fitter report so the

@@ -2,7 +2,7 @@
 CONFIG_DEFAULT_DEVICE_TREE="socfpga_agilex5_pcf4n"
 CONFIG_OF_LIST="socfpga_agilex5_pcf4n"
 CONFIG_IDENT_STRING=" pcf4n-@BUILD_KIND@"
-CONFIG_LOCALVERSION="-pcf4n-arch-timer-mmc-diag"
+CONFIG_LOCALVERSION="-pcf4n-emmc4-hs52-dt50"
 CONFIG_LOCALVERSION_AUTO=n
 
 # Agilex 5 already exposes the mandatory ARMv8 architected counter and BL31

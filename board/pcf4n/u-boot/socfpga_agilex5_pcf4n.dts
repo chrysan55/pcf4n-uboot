@@ -105,9 +105,38 @@
 	non-removable;
 	no-sd;
 	no-sdio;
+	disable-wp;
 	cap-mmc-highspeed;
 	mmc-pwrseq = <&emmc_pwrseq>;
+	/* The device core is powered at 3.3 V; its I/O rail is fixed at 1.8 V. */
+	vmmc-supply = <&sd_emmc_power>;
+	vqmmc-supply = <&emmc_io_1v8_reg>;
+	/*
+	 * The card wiring is four-bit even though the SD6HC macro advertises an
+	 * eight-bit datapath. The macro also reports a 200 MHz base clock while
+	 * its card-clock divider is fed by the board's 50 MHz CIU clock. Override
+	 * both fields so the stock SDHCI divider calculation matches hardware.
+	 */
+	sdhci-caps-mask = <0x00000000 0x0004ff00>;
+	sdhci-caps = <0x00000000 0x00003200>;
+	/* MMC HS52 mode; the board's 50 MHz CIU clock is the physical limit. */
 	max-frequency = <52000000>;
+
+	/* Altera Agilex 5 eMMC-variant Legacy-mode timing configuration. */
+	cdns,phy-dqs-timing-delay-sd-ds = <0x00780000>;
+	cdns,phy-gate-lpbk-ctrl-delay-sd-ds = <0x81a40040>;
+	cdns,phy-dll-slave-ctrl-sd-ds = <0x00a000fe>;
+	cdns,phy-dq-timing-delay-sd-ds = <0x28000001>;
+
+	/* Altera Agilex 5 eMMC-variant MMC HS/52 SDR timing configuration. */
+	cdns,phy-dqs-timing-delay-emmc-sdr = <0x00780001>;
+	cdns,phy-gate-lpbk-ctrl-delay-emmc-sdr = <0x81a40040>;
+	cdns,phy-dll-slave-ctrl-emmc-sdr = <0x00000000>;
+	cdns,phy-dq-timing-delay-emmc-sdr = <0x10000001>;
+	cdns,ctrl-hrs09-timing-delay-emmc-sdr = <0x0001800c>;
+	cdns,ctrl-hrs10-lpbk-ctrl-delay-emmc-sdr = <0x00030000>;
+	cdns,ctrl-hrs16-slave-ctrl-emmc-sdr = <0x00000101>;
+	cdns,ctrl-hrs07-timing-delay-emmc-sdr = <0x000a0001>;
 };
 
 &qspi {

@@ -17,6 +17,14 @@
 	bootph-all;
 };
 
+&sd_emmc_power {
+	bootph-all;
+};
+
+&emmc_io_1v8_reg {
+	bootph-all;
+};
+
 &flash0 {
 	bootph-all;
 	/delete-property/ cdns,read-delay;

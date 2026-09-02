@@ -18,7 +18,10 @@
 - [ ] Logic team: confirm Reset Release IP is instantiated and document the
   FPGA application-reset release. If HPS-FPGA bridges are enabled, document
   each `h2f_reset` connection and warm-reset handshake/quiesce behavior.
-- [ ] Hardware team: confirm installed eMMC manufacturer and part number.
+- [x] Board bring-up: identify the installed eMMC through a live CID exchange.
+  CMD2 returned manufacturer ID `0x15` (Samsung) and product name `AJTD4R`;
+  the working alternate build reports 14.6 GiB (nominal 16 GB). The exact
+  ordering code should still be confirmed from the BOM/marking.
 - [ ] Hardware team: confirm usable DDR capacity from the Quartus handoff.
 - [x] Board bring-up: with QSPI ownership assigned to HPS, SPL reads the FIT
   from SPI and verifies the configuration, BL31, U-Boot, and FDT CRCs.
@@ -52,6 +55,35 @@
   confirm that the expected eMMC device is enumerated. Reaching the prompt
   confirms the timer fix, but does not by itself validate repeated 4-bit eMMC
   I/O.
+- [x] Board bring-up: validate the `pcf4n-emmc-reset-diag` pair and capture
+  `[mmc:pwrseq-get=0][mmc:pwrseq>][mmc:pwrseq=0]` before PHY initialization;
+  the sequence completes, but eMMC CMD1 still times out.
+- [x] Board bring-up: validate the `pcf4n-reset100ms-sdprobe-raw-diag` pair.
+  After the board power issue was corrected, CMD8 and CMD55 still returned
+  `INT_STATUS=0x000a8000`, response `0x11111111`, and `-ECOMM`; generic U-Boot
+  therefore never selected its timeout-only eMMC fallback.
+- [x] Board bring-up: validate the
+  `pcf4n-reset100ms-cmd1-phyobs-diag` pair. The scope capture contains exactly
+  one 48-clock host CMD1 frame with argument zero and no eMMC R3 response;
+  Combo PHY reports `cmd-underrun=1` and the SDHCI response is the invalid
+  repeated value `0x11111111`.
+- [x] Hardware/board bring-up: confirm eMMC VCC is 3.3 V and fixed VCCQ is
+  1.8 V. U-Boot and Linux now model both rails explicitly.
+- [x] Board bring-up: manually apply the Linux-style Legacy PHY tuple and a
+  true 400 kHz card clock derived from the 50 MHz CIU source. CMD1 then returns
+  `0x40ff8080` followed by ready OCR `0xc0ff8080`; CMD2/CMD3/CMD9/CMD7 and
+  CMD13 complete, and CMD13 reports transfer state with ready-for-data set.
+  This proves the eMMC, wiring, power rails, reset sequence and command receive
+  path. The old `0x11111111` result came from the U-Boot static Legacy PHY/
+  clock setup, not a missing or damaged eMMC.
+- [ ] Board bring-up: validate the new `pcf4n-emmc4-hs52-dt50` HEX/ITB pair.
+  Require successful `mmc rescan`, Samsung CID/product `AJTD4R`, 14.6 GiB
+  capacity, `Bus Width: 4-bit`, and a successful block read. The candidate
+  masks `SDHCI_CAN_DO_8BIT`, advertises MMC HS52 but not HS200/HS400, and uses
+  the Altera eMMC-variant Legacy/SDR PHY tables. It applies none of the former
+  eMMC functional patches 0008--0011. The DTS masks the incorrect 200 MHz
+  SDHCI base-clock field and substitutes the measured 50 MHz CIU rate; require
+  `CLOCK_CONTROL=0x0007` and an approximately 50 MHz pin clock in HS52 mode.
 - [ ] Board software: after locating the MMC failure, remove the UART1
   reset-preserve workaround and diagnostic prints. These are bring-up aids,
   not FPGA-first requirements.
@@ -62,8 +94,9 @@
 - [ ] Product firmware: disable the UART1 console/getty before UART1 is handed
   to the MCU firmware-upgrade protocol.
 - [ ] Board bring-up: validate EMAC2/RTL8211F link and RGMII timing.
-- [ ] Board bring-up: validate eMMC reset on HPS GPIO27 (pin `AG123`) and
-  4-bit/52 MHz operation under repeated writes.
+- [x] Board bring-up: validate the eMMC reset path on HPS GPIO27 (pin `AG123`).
+- [ ] Board bring-up: validate 4-bit MMC HS52 operation under repeated reads
+  and writes; the 50 MHz CIU clock is the board's physical maximum.
 - [ ] Hardware/logic teams: provide power-controller and optical-module device
   addresses plus module-presence/reset/interrupt GPIOs so child nodes can be
   added to the enabled management buses.

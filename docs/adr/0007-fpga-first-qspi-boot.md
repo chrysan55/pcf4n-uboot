@@ -256,6 +256,117 @@ that the fatal initialization failure was the DM/APB timer dependency rather
 than the proposed 4-bit PHY default table. Full eMMC enumeration and repeated
 4-bit I/O remain separate board-validation gates.
 
+## GPIO27 eMMC reset diagnostic
+
+The first command-prompt test found that the board-level `mmc-pwrseq-emmc`
+node was present but the Cadence SDHCI driver never acquired or executed it.
+The next `pcf4n-emmc-reset-diag` build runs the optional MMC power sequence
+after controller resets and DT parsing, but before Combo PHY initialization.
+For PCF4N this drives GPIO1/portb[3] (HPS GPIO27, package pin AG123) active-low
+for 1 us, releases it, waits 200 us, and then continues. A successful board
+log must contain
+`[mmc:pwrseq-get=0][mmc:pwrseq>][mmc:pwrseq=0][mmc:phy>]` in that order.
+This change addresses the missing reset pulse only; voltage and CMD1 response
+diagnosis remain separate until the new pair is tested on hardware.
+
+Board oscilloscope measurements subsequently showed GPIO27 releasing RESET_n
+before the eMMC 3.3 V device supply had settled. The generic
+`mmc-pwrseq-emmc` sequence only holds reset for 1 us. For PCF4N the
+`pcf4n-reset10ms-cmd1-diag` build therefore holds GPIO27 low for 10 ms, then
+keeps the existing 200 us post-release delay before Cadence PHY setup. Other
+machines retain the upstream 1 us assertion interval. The markers
+`[pwrseq:reset-low=10ms][pwrseq:reset-released]` make the selected sequence
+visible in the serial log and correlate it with the scope capture.
+
+## CMD1 response diagnostic
+
+Board validation confirmed the GPIO27 power sequence completes before PHY
+initialization, all four DAT inputs and CMD read idle-high, and CMD activity is
+visible at approximately 1.8 V on the board trace. Forcing the SDHCI Power
+Control byte from the 3.3 V encoding to the 1.8 V encoding did not change the
+`-ETIMEDOUT` result. The generic `Card did not respond to voltage select`
+message still conflates two cases: no CMD1 response interrupt, and repeated R3
+responses whose OCR never sets `OCR_BUSY`.
+
+The CMD1 diagnostics retained by the `pcf4n-reset10ms-cmd1-diag` build record
+the first four CMD1 arguments, live `PRESENT_STATE`, clock/power controls, raw
+interrupt status and R3
+responses before SDHCI clears them. It also reports OCR changes, retry count,
+and the one-second operation-condition timeout. This diagnostic intentionally
+does not change bus width, PHY timing, supply descriptions or the PFG layout.
+
+The first 10 ms reset-hold board run still returned failure from `mmc rescan`,
+but none of the CMD1 markers appeared. The follow-up
+`pcf4n-reset10ms-initcmd-diag` build therefore records power initialization,
+host reinitialization, CMD0, SD CMD8, and the first four CMD55/ACMD41
+exchanges. It also records whether the SD probe returned `-ETIMEDOUT`, the
+only result that makes this U-Boot revision fall back to eMMC CMD1. No command
+selection behavior is changed by this diagnostic build.
+
+The subsequent `pcf4n-reset10ms-sdprobe-raw-diag` build captures the SDHCI
+state for SD CMD8 and CMD55 before `INT_STATUS` at HPS physical address
+`0x10808230` is cleared. It records the encoded command, raw interrupt and
+present-state values, response registers, and clock/power/reset controls. It
+also distinguishes a pre-command inhibit timeout from a post-command software
+poll timeout. This remains observation-only and does not change the SD/eMMC
+selection policy.
+
+The next power-isolation run uses
+`pcf4n-reset100ms-sdprobe-raw-diag`. It extends only the PCF4N GPIO27
+RESET_n assertion interval from 10 ms to 100 ms, retains the 200 us
+post-release wait, and leaves the PHY values and command diagnostics
+unchanged. This deliberately oversized bring-up interval is intended to
+exclude incomplete eMMC supply settling before reset release; it is not yet a
+production timing requirement.
+
+After the power issue was corrected, the 100 ms build reproduced identical
+`CMD8` and `CMD55` results: `INT_STATUS=0x000a8000`, response `0x11111111`, and
+`-ECOMM`. Because generic U-Boot falls back from SD discovery to MMC CMD1 only
+for `-ETIMEDOUT`, the eMMC command was never sent. The follow-up
+`pcf4n-reset100ms-cmd1-phyobs-diag` build keeps the reset and PHY settings
+unchanged, bypasses SD-only discovery on the PCF4N compatible, and starts CMD1
+directly. It also samples Combo PHY `PHY_OBS_REG_0` (`0x10b92018`) immediately
+after early CMD1 completions/errors and decodes command FIFO overflow (bit 27)
+and underrun (bit 26), before error recovery can clear the latched evidence.
+
+The resulting board trace shows one host-to-device CMD1 frame with argument
+zero and no second device-to-host R3 frame. At the measured 24.45 kHz clock,
+the approximately 1.96 ms CMD activity is exactly 48 clock periods; the long
+low interval is the CMD1 zero argument, not a second response. The PHY's
+`cmd-underrun=1` and synthetic `0x11111111` response are therefore consequences
+of a physically missing response.
+
+## eMMC supply model and initialization-clock correction
+
+Hardware confirmation establishes two distinct rails: eMMC VCC is fixed at
+3.3 V and VCCQ is fixed at 1.8 V. Both U-Boot and Linux now reference the
+Agilex 5 base device tree's `sd_emmc_power` and `emmc_io_1v8_reg` fixed
+regulators. The regulator nodes are retained in all U-Boot phases. This matches
+Altera's Agilex 5 eMMC reference device tree and prevents later software from
+treating the 1.8 V signaling rail as switchable or absent.
+
+The SDHCI Power Control byte is deliberately not forced to its 1.8 V encoding.
+That field and the CMD1 OCR voltage window represent the card VCC supply, which
+is 3.3 V on PCF4N. VCCQ is a separate I/O rail; changing `pwr=0x0f` to `0x0b`
+would conflate the two supplies and the earlier experiment already showed no
+CMD1-response improvement.
+
+The 24.45 kHz identification clock exposed a separate protocol defect. U-Boot
+2026.01 waits a fixed 1 ms between enabling the clock and sending CMD0. At this
+clock rate the eMMC sees only about 24 clocks, below the required 74 initial
+clock cycles. The `pcf4n-vccq1v8-init74-diag` build computes the delay from the
+actual clock while preserving the existing 1 ms minimum; at 24.45 kHz it waits
+about 3.03 ms. Its log must show the modeled rails and the selected interval:
+
+```text
+[mmc:rails vcc-uv=3300000 vccq-uv=1800000]
+[init74:clock=<approximately 24450> delay-us=<approximately 3030>]
+```
+
+This version keeps the 100 ms RESET_n hold, direct eMMC CMD1 path, PHY values,
+OCR window and QSPI/PFG layout unchanged. It isolates supply description and
+the missing initialization clocks from receive-PHY tuning.
+
 ## Rejected explicit PHY-default override
 
 The proposed 4-bit timing table matches the locked U-Boot 2026.01 Cadence
@@ -264,3 +375,67 @@ than `bus-width`, and the locked Linux driver does not consume the raw U-Boot
 properties. Adding the table to the board DTS would therefore create no PHY
 register change, so the override was not retained; validation continues with
 the `pcf4n-arch-timer-mmc-diag` artifact pair.
+
+## Live PHY/clock isolation and diagnostic decision
+
+Later register-level testing changed the conclusion above. The originally
+proposed values were only the U-Boot static table and did not match the values
+calculated by the locked Linux 26.1 Cadence6 driver for this controller and
+clock. More importantly, SDHCI capabilities advertise a 200 MHz base/BIU
+clock while the SD6HC card-clock divider is actually fed by the named 50 MHz
+CIU clock. Generic U-Boot used the former for divider calculations. Its
+`CLOCK_CONTROL=0xffc7` therefore produced approximately 24.45 kHz at the pin
+and made every later requested frequency incorrect.
+
+The board was left otherwise unchanged and programmed interactively with a
+true approximately 400 kHz card clock plus the Linux Legacy-mode tuple:
+
+```text
+DQS timing       0x00780004
+gate/loopback    0x81a40040
+master DLL       0x00a00004
+slave DLL        0x00000000
+DQ timing        0x00000001
+HRS09            0xf1c1800f
+HRS10            0x00010000
+HRS16            0x00000000
+HRS07            0x00080000
+PHY_CTRL[9:4]    0
+```
+
+With that tuple the same eMMC returned CMD1 OCR `0x40ff8080`, then ready OCR
+`0xc0ff8080`. CMD2 returned a valid Samsung CID (MID `0x15`, product name
+`AJTD4R`), and CMD3, CMD9, CMD7 and CMD13 all completed. The final CMD13 R1
+value `0x00000900` reports READY_FOR_DATA and Transfer state. This is a
+controlled proof that the device, board wiring, VCC/VCCQ rails, reset path,
+clock output and bidirectional CMD path are functional.
+
+The next checked-in diagnostic therefore makes two scoped changes:
+
+- use and enable the named CIU clock, set `host->max_clk` from its 50 MHz live
+  rate, and set the identification minimum to 400 kHz;
+- apply the live-validated Legacy PHY properties and clear PHY_CTRL's
+  phony-DQS timing field before PHY reset release.
+
+The board DTS also disables high-speed capability and caps `max-frequency` at
+400 kHz. That cap is deliberate: it validates normal U-Boot enumeration and
+block I/O without claiming that the Linux driver's dynamically calculated
+high-speed values have been ported. It must be removed only after 4-bit 52 MHz
+read/write stress tests pass.
+
+## Final DTS-only eMMC outcome
+
+Subsequent A/B testing superseded the temporary 400 kHz diagnostic profile.
+With the four-bit Legacy/SDR PHY tables and HS200/HS400 disabled, the locked
+U-Boot driver enumerated the Samsung `AJTD4R` and completed a block read without
+the experimental eMMC functional patches 0008--0011. Those patches were
+therefore removed.
+
+The same test reported `CLOCK_CONTROL=0x0207`, and an oscilloscope measured
+12.5 MHz rather than the selected 52 MHz. The controller capability field said
+200 MHz while the physical CIU source was 50 MHz, so the original driver chose
+a divide-by-four setting. The final board DTS masks the incorrect base-clock
+field and supplies 50 MHz (`sdhci-caps-mask` low cell `0x0004ff00`,
+`sdhci-caps` low cell `0x00003200`). This preserves the original driver and
+keeps the board-specific correction in data. ADR 0008 records the resulting
+four-bit HS52 profile and its remaining validation gate.
