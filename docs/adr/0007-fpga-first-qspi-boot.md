@@ -40,7 +40,8 @@ BL31's printed `Argument #0 = 0x1` is not by itself a failure: this U-Boot
 board's strong `save_boot_params` implementation branches directly back to
 `save_boot_params_ret` and does not consume `x0` through `x3`.
 
-The next capture produced the complete `ABCDEF[f0][fdt][cpu][dm][serial>]`
+The next historical capture produced the complete
+`ABCDEF[f0][fdt][cpu][dm][serial>]`
 sequence. This proves normal-world DDR execution, UART1 access, SError
 unmasking, the initial stack, appended FDT, CPU setup, and driver-model setup.
 With pre-console buffering and silent-console support disabled,
@@ -48,7 +49,9 @@ With pre-console buffering and silent-console support disabled,
 `serial_init()` while selecting or probing the UART1 NS16550 device. The board
 override now states the handoff-observed 100 MHz L4 SP/UART clock explicitly,
 and the next diagnostic traces DT translation, clock selection, reset
-deassertion, and the transmitter-empty wait.
+deassertion, and the transmitter-empty wait. These direct-MMIO and serial
+driver diagnostics have now been retired; they are recorded below only as
+historical fault-isolation evidence.
 
 ## Mode semantics and reset ownership
 
@@ -117,6 +120,22 @@ also a diagnostic workaround. Neither is a required FPGA-first setting.
 - Identify every programmed HEX by banner timestamp and SHA-256, and preserve
   the final PFG map with the JIC.
 
+## UART1 configuration after diagnostic retirement
+
+UART1 console routing is configuration, not a U-Boot driver variation:
+
+- TF-A is rebuilt from a clean object directory with
+  `SOCFPGA_UART_CONFIG=1`; the locked platform header then selects
+  `PLAT_UART1_BASE` (`0x10c02100`) for runtime and crash consoles.
+- The PCF4N U-Boot DTS preserves hardware numbering with `serial1 = &uart1`.
+  Its U-Boot overlay selects `stdout-path = "serial1:115200n8"` and marks
+  `&uart1` as `bootph-all`, so both SPL and U-Boot proper retain the node.
+- The board DTS records the handoff-observed 100 MHz UART clock and retains
+  the SoC's standard UART1 Reset Manager specifier.
+- U-Boot's ARMv8 entry code, board initialization, and NS16550 driver remain
+  identical to the locked upstream revision. No direct-MMIO UART markers,
+  base-address special cases, or reset bypasses are part of the final route.
+
 ## Consequences
 
 - A missing QSPI grant, unrecognized flash, or invalid flash node now fails at
@@ -169,16 +188,16 @@ NS16550 driver's DT conversion begins), `[addr]`, `[clk=05f5e100]` (100 MHz),
 in particular, `[temt=...]` without `[temt<]` proves the indefinite wait for
 UART LSR bit 6.
 
-The UART1-probe capture stopped at `[probe>]`, after DT address and 100 MHz
+The historical UART1-probe capture stopped at `[probe>]`, after DT address and 100 MHz
 clock resolution but before the combined reset result marker. Therefore the
 remaining operation is reset acquisition/deassertion. Because SPL and BL31
 already initialized UART1 and the BL33 raw markers prove it is live in EL2,
-the current build preserves UART1's reset state only in U-Boot proper and
-prints `[rst-skip]`. SPL still performs the original reset operation. A
+the diagnostic build preserved UART1's reset state only in U-Boot proper and
+printed `[rst-skip]`. SPL still performed the original reset operation. A
 successful continuation should be `[rst-skip][temt=........][temt<][probe<]`
 `[serial<][console]`, followed by the normal U-Boot banner.
 
-That continuation is now observed twice, before and after relocation. U-Boot
+That continuation was observed twice, before and after relocation. U-Boot
 proper prints its banner, CPU/model/DRAM information, and the driver-model
 summary, then stops during `MMC:` with `Could not initialize timer (err -19)`.
 The message originates in `dm_timer_init()` and `-19` is `ENODEV`: it is not an

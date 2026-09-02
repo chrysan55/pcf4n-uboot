@@ -42,7 +42,7 @@ first_value=$((16#$first_octet))
 grep -q 'u-boot,spl-boot-order = &flash0' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n-u-boot.dtsi"
 grep -q 'stdout-path = "serial1:115200n8"' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n-u-boot.dtsi"
 grep -q 'CONFIG_TARGET_SOCFPGA_AGILEX5_SIMICS=n' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
-grep -q 'CONFIG_LOCALVERSION="-pcf4n-emmc4-hs52-dt50"' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
+grep -q 'CONFIG_LOCALVERSION="-pcf4n-emmc4-hs52-dt50-uart1-dt"' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
 grep -q 'CONFIG_TIMER=n' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
 grep -q 'CONFIG_DESIGNWARE_APB_TIMER=n' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
 grep -q 'CONFIG_SPL_SHOW_ERRORS=y' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
@@ -50,17 +50,25 @@ grep -q 'CONFIG_SPL_FIT_PRINT=y' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
 grep -q 'CONFIG_SPL_RAM_DEVICE=n' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
 grep -q 'mailbox direct-mode init failed' "$ROOT_DIR/board/pcf4n/u-boot/patches/0001-socfpga-spl-qspi-diagnostics.patch"
 grep -q 'SPL: entering BL31' "$ROOT_DIR/board/pcf4n/u-boot/patches/0002-socfpga-spl-atf-handoff-diagnostics.patch"
-grep -q 'PCF4N BL33 early markers' "$ROOT_DIR/board/pcf4n/u-boot/patches/0003-arm64-bl33-entry-diagnostics.patch"
-grep -q 'trace PCF4N UART1 probe' "$ROOT_DIR/board/pcf4n/u-boot/patches/0004-ns16550-uart1-probe-diagnostics.patch"
-grep -q 'preserve live PCF4N UART1 reset state' "$ROOT_DIR/board/pcf4n/u-boot/patches/0005-pcf4n-preserve-uart1-reset-in-proper.patch"
 grep -q 'BL33 preflight' "$ROOT_DIR/board/pcf4n/atf/patches/0001-agilex5-bl33-preflight-diagnostics.patch"
 grep -q '^ATF_CONSOLE_UART=1$' "$ROOT_DIR/config/board.env"
+grep -q 'SOCFPGA_UART_CONFIG="$ATF_CONSOLE_UART"' "$ROOT_DIR/scripts/build-atf.sh"
 grep -q '^ATF_DEBUG=1$' "$ROOT_DIR/config/board.env"
 grep -q '^ATF_LOG_LEVEL=50$' "$ROOT_DIR/config/board.env"
 grep -q 'spi-max-frequency = <25000000>' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n.dts"
 grep -q 'spi-rx-bus-width = <1>' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n.dts"
 grep -A4 '^&uart1' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n.dts" | \
   grep -q 'clock-frequency = <100000000>'
+grep -A3 '^&uart1' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n-u-boot.dtsi" | \
+  grep -q 'bootph-all'
+if rg -q 'drivers/serial/|PCF4N_EARLY_UART|pcf4n_uart_' \
+  "$ROOT_DIR/board/pcf4n/u-boot/patches"; then
+  die 'UART1 routing must not patch or bypass the upstream U-Boot serial driver'
+fi
+if grep -q '/delete-property/ resets' \
+  "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n-u-boot.dtsi"; then
+  die 'UART1 must retain its standard Reset Manager connection'
+fi
 if grep -q 'tick-timer' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n-u-boot.dtsi"; then
   die 'architected-counter build must not select an APB tick-timer'
 fi

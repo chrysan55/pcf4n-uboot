@@ -34,6 +34,8 @@ make -C "$src" CROSS_COMPILE=aarch64-linux-gnu- PLAT=agilex5 \
   BUILD_BASE="$build_base" DEBUG="$ATF_DEBUG" clean
 
 log "building ATF BL31 (UART$ATF_CONSOLE_UART, log level $ATF_LOG_LEVEL)"
+# The locked TF-A revision has a verbose/toolchain-detection make expansion
+# failure in lib/libfdt/libfdt.mk, so do not add V=1 to this invocation.
 make -C "$src" CROSS_COMPILE=aarch64-linux-gnu- PLAT=agilex5 \
   BUILD_BASE="$build_base" DEBUG="$ATF_DEBUG" \
   LOG_LEVEL="$ATF_LOG_LEVEL" SOCFPGA_UART_CONFIG="$ATF_CONSOLE_UART" \

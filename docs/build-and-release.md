@@ -99,8 +99,8 @@ mixed with a new external-toolchain build.
 - Confirm the Macronix flash loader/device selection supported by Quartus.
 - Record the SPL banner timestamp and SHA-256 from the exact HEX embedded in
   the final JIC; do not select an older handoff directory by filename alone.
-- For the current stock-driver/DTS-clock build, require the SPL and U-Boot
-  banners to contain `pcf4n-emmc4-hs52-dt50`; an earlier
+- For the current stock-driver/DTS-clock/UART1-DT build, require the SPL and
+  U-Boot banners to contain `pcf4n-emmc4-hs52-dt50-uart1-dt`; an earlier
   `pcf4n-linuxphy400k-diag`,
   `pcf4n-vccq1v8-init74-diag`,
   `pcf4n-reset100ms-cmd1-phyobs-diag`, `pcf4n-reset100ms-sdprobe-raw-diag`,
@@ -111,9 +111,9 @@ mixed with a new external-toolchain build.
   `pcf4n-arch-timer-diag`,
   `pcf4n-timer2-diag`, `pcf4n-uart1-preserve-diag`,
   `pcf4n-uart1-probe-diag`, `pcf4n-bl33-entry-diag`, `pcf4n-handoff-diag`, or
-  plain `2026.01-g<commit>` banner is stale. BL31 preflight output, raw U-Boot
-  entry markers, and successful UART1 probe markers must precede the U-Boot
-  proper banner. This build intentionally uses the ARMv8 architected counter
+  plain `2026.01-g<commit>` banner is stale. The current build intentionally
+  removes the raw U-Boot entry and NS16550 probe markers: normal U-Boot output
+  on UART1 is the acceptance criterion. It uses the ARMv8 architected counter
   rather than APB timer2.
 
   For eMMC validation, require `mmc rescan` to return success and `mmc info` to

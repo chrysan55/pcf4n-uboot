@@ -76,7 +76,7 @@
   This proves the eMMC, wiring, power rails, reset sequence and command receive
   path. The old `0x11111111` result came from the U-Boot static Legacy PHY/
   clock setup, not a missing or damaged eMMC.
-- [ ] Board bring-up: validate the new `pcf4n-emmc4-hs52-dt50` HEX/ITB pair.
+- [x] Board bring-up: validate the `pcf4n-emmc4-hs52-dt50` HEX/ITB pair.
   Require successful `mmc rescan`, Samsung CID/product `AJTD4R`, 14.6 GiB
   capacity, `Bus Width: 4-bit`, and a successful block read. The candidate
   masks `SDHCI_CAN_DO_8BIT`, advertises MMC HS52 but not HS200/HS400, and uses
@@ -84,9 +84,11 @@
   eMMC functional patches 0008--0011. The DTS masks the incorrect 200 MHz
   SDHCI base-clock field and substitutes the measured 50 MHz CIU rate; require
   `CLOCK_CONTROL=0x0007` and an approximately 50 MHz pin clock in HS52 mode.
-- [ ] Board software: after locating the MMC failure, remove the UART1
-  reset-preserve workaround and diagnostic prints. These are bring-up aids,
-  not FPGA-first requirements.
+- [x] Board software: remove the UART1 reset-preserve workaround, direct-MMIO
+  entry markers, and NS16550 probe diagnostics. TF-A now selects UART1 only
+  with `SOCFPGA_UART_CONFIG=1`; SPL/U-Boot select it through `serial1`,
+  `stdout-path`, and `bootph-all`, while retaining the standard UART1 reset
+  description and the unmodified upstream serial driver.
 - [x] Board bring-up: UART1/Type-C development console prints the SPL banner,
   clock summary, and DDR calibration results.
 - [ ] Board bring-up: save a complete successful boot log and confirm UART0

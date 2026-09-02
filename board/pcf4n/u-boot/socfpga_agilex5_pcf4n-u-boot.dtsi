@@ -8,6 +8,7 @@
 	};
 
 	chosen {
+		/* Select UART1 through board data; keep the upstream serial driver. */
 		stdout-path = "serial1:115200n8";
 		u-boot,spl-boot-order = &flash0;
 	};
@@ -47,6 +48,7 @@
 };
 
 &uart1 {
+	/* Retain the SoC reset specifier and let the generic driver manage it. */
 	bootph-all;
 };
 

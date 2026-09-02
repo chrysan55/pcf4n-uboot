@@ -5,7 +5,7 @@ ROOT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 # shellcheck source=/dev/null
 source "$ROOT_DIR/config/board.env"
 
-[[ "$BOARD_CONFIG_REVISION" == 3 ]]
+[[ "$BOARD_CONFIG_REVISION" == 7 ]]
 [[ "$HPS_DATA_UART" == 0 ]]
 [[ "$HPS_UPGRADE_UART" == 1 ]]
 [[ "$HPS_DEVELOPMENT_CONSOLE_UART" == 1 ]]
