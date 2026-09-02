@@ -83,6 +83,8 @@ mixed with a new external-toolchain build.
 - Confirm the Quartus project contains `set_global_assignment -name QSPI_OWNERSHIP HPS`.
 - Confirm HPS and HPS-EMIF reference clocks are free-running, stable before
   configuration, and match the frequencies compiled into the Quartus handoff.
+- Confirm the SD/eMMC SoftPHY clock is 200 MHz. The SPL clock summary must
+  report `SDMMC 200000 kHz` before the HS200 image is accepted.
 - Confirm `HPS_COLD_nRESET` has the required external pull-up and is not driven
   by FPGA/CPLD logic after the SDM releases it.
 - Confirm Reset Release IP holds FPGA application logic reset until full user
@@ -99,8 +101,9 @@ mixed with a new external-toolchain build.
 - Confirm the Macronix flash loader/device selection supported by Quartus.
 - Record the SPL banner timestamp and SHA-256 from the exact HEX embedded in
   the final JIC; do not select an older handoff directory by filename alone.
-- For the current stock-driver/DTS-clock/UART1-DT build, require the SPL and
-  U-Boot banners to contain `pcf4n-emmc4-hs52-dt50-uart1-dt`; an earlier
+- For the current clean stock-source build, require the SPL and U-Boot banners
+  to contain `pcf4n-emmc4-hs200-uart1`; an earlier
+  `pcf4n-emmc4-hs52-uart1`,
   `pcf4n-linuxphy400k-diag`,
   `pcf4n-vccq1v8-init74-diag`,
   `pcf4n-reset100ms-cmd1-phyobs-diag`, `pcf4n-reset100ms-sdprobe-raw-diag`,
@@ -111,10 +114,10 @@ mixed with a new external-toolchain build.
   `pcf4n-arch-timer-diag`,
   `pcf4n-timer2-diag`, `pcf4n-uart1-preserve-diag`,
   `pcf4n-uart1-probe-diag`, `pcf4n-bl33-entry-diag`, `pcf4n-handoff-diag`, or
-  plain `2026.01-g<commit>` banner is stale. The current build intentionally
-  removes the raw U-Boot entry and NS16550 probe markers: normal U-Boot output
-  on UART1 is the acceptance criterion. It uses the ARMv8 architected counter
-  rather than APB timer2.
+  plain `2026.01-g<commit>` banner is stale. The current build contains no
+  downstream TF-A/U-Boot source patches or bring-up markers: normal SPL,
+  BL31, and U-Boot output on UART1 is the acceptance criterion. It uses the
+  ARMv8 architected counter rather than APB timer2.
 
   For eMMC validation, require `mmc rescan` to return success and `mmc info` to
   report manufacturer ID `15`, product `AJTD4R`, 14.6 GiB capacity and
@@ -122,13 +125,13 @@ mixed with a new external-toolchain build.
   expected data. Probe GPIO27 RESET_n only if the normal board power-on reset
   remains in question; this build does not execute the DT `mmc-pwrseq` node.
 
-  The candidate models VCC=3.3 V and VCCQ=1.8 V, masks
-  `SDHCI_CAN_DO_8BIT`, and enables four-bit MMC HS52 without HS200/HS400. It
-  uses the locked Altera eMMC-variant Legacy/SDR PHY tables. It deliberately
-  retains the original U-Boot SD-probe fallback and PHY_CTRL handling. The DTS
-  masks the incorrect 200 MHz SDHCI base-clock field and substitutes 50 MHz,
-  allowing the original divider code to generate the true CIU rate. Require
-  final `CLOCK_CONTROL=0x0007` and an approximately 50 MHz measured pin clock.
+  The candidate models VCC=3.3 V and VCCQ=1.8 V, masks only
+  `SDHCI_CAN_DO_8BIT`, and enables four-bit MMC HS200 without HS400. It uses
+  the locked Altera Legacy/SDR/HS200 PHY profiles and the original Cadence and
+  SDHCI drivers. The production controller's 200 MHz SRS16.BSDCLK value is not
+  overridden, so the FPGA handoff must supply the same 200 MHz SoftPHY clock.
+  Require successful CMD21 tuning, final `CLOCK_CONTROL=0x0007`, a 200 MHz pin
+  clock, repeated reads, and controlled write/read comparison.
 - Package `output/qspi-handoff/` with the source `build-manifest.json`.
 - Preserve the final `.pfg`, `.jic`, map file, and hashes alongside this build.
 - Preserve the final `.qsf`, HPS/EMIF handoff, and Quartus fitter report so the

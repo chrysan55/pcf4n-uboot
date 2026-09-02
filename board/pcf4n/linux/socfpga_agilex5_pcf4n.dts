@@ -106,11 +106,12 @@
 	no-sdio;
 	disable-wp;
 	cap-mmc-highspeed;
+	mmc-hs200-1_8v;
 	mmc-pwrseq = <&emmc_pwrseq>;
 	/* The device core is powered at 3.3 V; its I/O rail is fixed at 1.8 V. */
 	vmmc-supply = <&sd_emmc_power>;
 	vqmmc-supply = <&emmc_io_1v8_reg>;
-	max-frequency = <52000000>;
+	max-frequency = <200000000>;
 };
 
 &osc1 {

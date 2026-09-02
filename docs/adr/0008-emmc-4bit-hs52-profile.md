@@ -1,6 +1,6 @@
 # ADR 0008: Four-bit eMMC HS52 profile
 
-- Status: Proposed for board validation
+- Status: Superseded by ADR 0009 after successful HS52 bring-up
 - Date: 2026-09-02
 
 ## Context

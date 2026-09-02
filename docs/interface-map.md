@@ -62,7 +62,7 @@ control, and over-current polarity.
 | Device supply (VCC) | 3.3 V, fixed/always-on | `vmmc-supply = <&sd_emmc_power>` |
 | I/O supply (VCCQ) | 1.8 V, fixed/always-on | `vqmmc-supply = <&emmc_io_1v8_reg>` |
 | Reset | HPS GPIO27, package pin `AG123` | `GPIO1/portb[3]`, active-low `mmc-pwrseq-emmc` |
-| Initial timing policy | 52 MHz high-speed maximum | `cap-mmc-highspeed`, no HS200/HS400 |
+| Timing policy | HS200 at up to 200 MHz | `mmc-hs200-1_8v`; HS400 disabled |
 
 Each Agilex 5 GPIO bank has 24 lines. Consequently global HPS GPIO27 maps to
 GPIO bank 1 line `27 - 24 = 3`, expressed as `<&portb 3 GPIO_ACTIVE_LOW>`.
@@ -71,6 +71,10 @@ The SDHCI Power Control voltage selection and CMD1 OCR describe the card VCC
 operating range, so the observed `POWER_CONTROL=0x0f` and CMD1 3.2--3.3 V OCR
 bit are correct for this board. They must not be changed to the 1.8 V encoding
 merely because the independent VCCQ signaling rail is 1.8 V.
+
+HS200 requires the FPGA/HPS handoff to provide a 200 MHz SoftPHY clock. The
+production controller's 200 MHz SRS16.BSDCLK value is retained; software masks
+only the unconnected eight-bit host capability.
 
 ## Source of truth and limits
 

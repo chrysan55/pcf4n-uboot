@@ -28,7 +28,8 @@ alternatively provide the corresponding EMAC MDIO pins.
 - Keep EMAC0 and EMAC1 disabled and EMAC2 enabled.
 - Preserve identity aliases for USB0 and USB1, but do not enable either USB
   controller until port role, VBUS, and over-current wiring are supplied.
-- Configure eMMC as non-removable 4-bit/52 MHz and reset it with HPS GPIO27.
+- Configure eMMC as non-removable 4-bit/1.8 V HS200 and reset it with HPS
+  GPIO27. The FPGA handoff must provide a 200 MHz SD/eMMC SoftPHY clock.
   Since each GPIO bank has 24 lines, GPIO27 is GPIO1/port B line 3.
 - Remove the earlier unconfirmed CAT24C32 node from I2C0. Its address `0x50`
   can collide with optical-module management, and no confirmed alternative

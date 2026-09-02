@@ -84,11 +84,24 @@
   eMMC functional patches 0008--0011. The DTS masks the incorrect 200 MHz
   SDHCI base-clock field and substitutes the measured 50 MHz CIU rate; require
   `CLOCK_CONTROL=0x0007` and an approximately 50 MHz pin clock in HS52 mode.
+- [x] Board hardware: confirm the installed eMMC supports four-bit operation,
+  fixed 1.8 V signaling, and HS200.
+- [ ] Logic team: regenerate the FPGA/HPS handoff with a 200 MHz SD/eMMC
+  SoftPHY clock. Reject the HS200 software candidate if SPL still reports
+  `SDMMC 50000 kHz`; it must report `SDMMC 200000 kHz`.
+- [ ] Board bring-up: validate the clean `pcf4n-emmc4-hs200-uart1` candidate.
+  Require successful CMD21 tuning, `AJTD4R`, `Bus Width: 4-bit`, 200 MHz bus
+  speed, `CLOCK_CONTROL=0x0007`, repeated reads, and controlled write/read
+  comparison. HS400 remains disabled.
 - [x] Board software: remove the UART1 reset-preserve workaround, direct-MMIO
   entry markers, and NS16550 probe diagnostics. TF-A now selects UART1 only
   with `SOCFPGA_UART_CONFIG=1`; SPL/U-Boot select it through `serial1`,
   `stdout-path`, and `bootph-all`, while retaining the standard UART1 reset
   description and the unmodified upstream serial driver.
+- [x] Board software: retire the remaining QSPI, SPL/BL31-handoff, TF-A
+  preflight, timer/MMC, and reset tracing patches. TF-A is now a release build
+  at NOTICE log level; U-Boot disables the extra SPL error/FIT printing. Both
+  source trees remain identical to their locked upstream commits.
 - [x] Board bring-up: UART1/Type-C development console prints the SPL banner,
   clock summary, and DDR calibration results.
 - [ ] Board bring-up: save a complete successful boot log and confirm UART0
@@ -97,8 +110,8 @@
   to the MCU firmware-upgrade protocol.
 - [ ] Board bring-up: validate EMAC2/RTL8211F link and RGMII timing.
 - [x] Board bring-up: validate the eMMC reset path on HPS GPIO27 (pin `AG123`).
-- [ ] Board bring-up: validate 4-bit MMC HS52 operation under repeated reads
-  and writes; the 50 MHz CIU clock is the board's physical maximum.
+- [ ] Board bring-up: retain the validated four-bit HS52 image as fallback
+  until the 200 MHz HS200 clock, tuning, and repeated I/O tests pass.
 - [ ] Hardware/logic teams: provide power-controller and optical-module device
   addresses plus module-presence/reset/interrupt GPIOs so child nodes can be
   added to the enabled management buses.

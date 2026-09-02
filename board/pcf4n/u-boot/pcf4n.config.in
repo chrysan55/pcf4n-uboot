@@ -2,7 +2,7 @@
 CONFIG_DEFAULT_DEVICE_TREE="socfpga_agilex5_pcf4n"
 CONFIG_OF_LIST="socfpga_agilex5_pcf4n"
 CONFIG_IDENT_STRING=" pcf4n-@BUILD_KIND@"
-CONFIG_LOCALVERSION="-pcf4n-emmc4-hs52-dt50-uart1-dt"
+CONFIG_LOCALVERSION="-pcf4n-emmc4-hs200-uart1"
 CONFIG_LOCALVERSION_AUTO=n
 
 # Agilex 5 already exposes the mandatory ARMv8 architected counter and BL31
@@ -15,11 +15,10 @@ CONFIG_TIMER=n
 CONFIG_DESIGNWARE_APB_TIMER=n
 
 # The Altera base defconfig enables its Simics-only target. PCF4N is physical
-# hardware, so retain the real-hardware watchdog/mailbox paths and make SPL
-# boot failures identify the numeric device/error during bring-up.
+# hardware, so retain the real-hardware watchdog/mailbox paths.
 CONFIG_TARGET_SOCFPGA_AGILEX5_SIMICS=n
-CONFIG_SPL_SHOW_ERRORS=y
-CONFIG_SPL_FIT_PRINT=y
+CONFIG_SPL_SHOW_ERRORS=n
+CONFIG_SPL_FIT_PRINT=n
 
 # The second stage is stored in QSPI. Do not silently fall back to parsing an
 # arbitrary DDR address as a preloaded image when QSPI probing fails.
@@ -54,6 +53,14 @@ CONFIG_PHY_REALTEK=y
 
 CONFIG_MMC=y
 CONFIG_MMC_WRITE=y
+CONFIG_MMC_UHS_SUPPORT=n
+CONFIG_SPL_MMC_UHS_SUPPORT=n
+CONFIG_MMC_HS200_SUPPORT=y
+CONFIG_SPL_MMC_HS200_SUPPORT=y
+CONFIG_MMC_HS400_SUPPORT=n
+CONFIG_SPL_MMC_HS400_SUPPORT=n
+CONFIG_MMC_HS400_ES_SUPPORT=n
+CONFIG_SPL_MMC_HS400_ES_SUPPORT=n
 CONFIG_PWRSEQ=y
 CONFIG_SPL_PWRSEQ=y
 CONFIG_MMC_PWRSEQ=y

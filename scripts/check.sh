@@ -42,28 +42,29 @@ first_value=$((16#$first_octet))
 grep -q 'u-boot,spl-boot-order = &flash0' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n-u-boot.dtsi"
 grep -q 'stdout-path = "serial1:115200n8"' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n-u-boot.dtsi"
 grep -q 'CONFIG_TARGET_SOCFPGA_AGILEX5_SIMICS=n' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
-grep -q 'CONFIG_LOCALVERSION="-pcf4n-emmc4-hs52-dt50-uart1-dt"' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
+grep -q 'CONFIG_LOCALVERSION="-pcf4n-emmc4-hs200-uart1"' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
 grep -q 'CONFIG_TIMER=n' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
 grep -q 'CONFIG_DESIGNWARE_APB_TIMER=n' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
-grep -q 'CONFIG_SPL_SHOW_ERRORS=y' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
-grep -q 'CONFIG_SPL_FIT_PRINT=y' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
+grep -q 'CONFIG_SPL_SHOW_ERRORS=n' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
+grep -q 'CONFIG_SPL_FIT_PRINT=n' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
 grep -q 'CONFIG_SPL_RAM_DEVICE=n' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
-grep -q 'mailbox direct-mode init failed' "$ROOT_DIR/board/pcf4n/u-boot/patches/0001-socfpga-spl-qspi-diagnostics.patch"
-grep -q 'SPL: entering BL31' "$ROOT_DIR/board/pcf4n/u-boot/patches/0002-socfpga-spl-atf-handoff-diagnostics.patch"
-grep -q 'BL33 preflight' "$ROOT_DIR/board/pcf4n/atf/patches/0001-agilex5-bl33-preflight-diagnostics.patch"
 grep -q '^ATF_CONSOLE_UART=1$' "$ROOT_DIR/config/board.env"
 grep -q 'SOCFPGA_UART_CONFIG="$ATF_CONSOLE_UART"' "$ROOT_DIR/scripts/build-atf.sh"
-grep -q '^ATF_DEBUG=1$' "$ROOT_DIR/config/board.env"
-grep -q '^ATF_LOG_LEVEL=50$' "$ROOT_DIR/config/board.env"
+grep -q '^ATF_DEBUG=0$' "$ROOT_DIR/config/board.env"
+grep -q '^ATF_LOG_LEVEL=20$' "$ROOT_DIR/config/board.env"
 grep -q 'spi-max-frequency = <25000000>' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n.dts"
 grep -q 'spi-rx-bus-width = <1>' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n.dts"
 grep -A4 '^&uart1' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n.dts" | \
   grep -q 'clock-frequency = <100000000>'
 grep -A3 '^&uart1' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n-u-boot.dtsi" | \
   grep -q 'bootph-all'
-if rg -q 'drivers/serial/|PCF4N_EARLY_UART|pcf4n_uart_' \
-  "$ROOT_DIR/board/pcf4n/u-boot/patches"; then
-  die 'UART1 routing must not patch or bypass the upstream U-Boot serial driver'
+if find "$ROOT_DIR/board/pcf4n" -type f -path '*/patches/*.patch' \
+  -print -quit | grep -q .; then
+  die 'clean build must not apply downstream TF-A or U-Boot source patches'
+fi
+if rg -q 'patches/\*\.patch' "$ROOT_DIR/scripts/build-atf.sh" \
+  "$ROOT_DIR/scripts/build-uboot.sh"; then
+  die 'clean build scripts must not contain source-patch application loops'
 fi
 if grep -q '/delete-property/ resets' \
   "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n-u-boot.dtsi"; then
@@ -72,25 +73,32 @@ fi
 if grep -q 'tick-timer' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n-u-boot.dtsi"; then
   die 'architected-counter build must not select an APB tick-timer'
 fi
-grep -q 'PCF4N timer/MMC boundary' "$ROOT_DIR/board/pcf4n/u-boot/patches/0006-pcf4n-timer-mmc-boundary-diagnostics.patch"
-grep -q 'trace PCF4N peripheral deassert results' "$ROOT_DIR/board/pcf4n/u-boot/patches/0007-pcf4n-reset-deassert-diagnostics.patch"
-if find "$ROOT_DIR/board/pcf4n/u-boot/patches" -maxdepth 1 -type f \
-  \( -name '000[89]-*.patch' -o -name '001[01]-*.patch' \) -print -quit | \
-  grep -q .; then
-  die 'stock-driver validation build must not apply eMMC functional patches 0008-0011'
+grep -q 'CONFIG_MMC_UHS_SUPPORT=n' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
+grep -q 'CONFIG_SPL_MMC_UHS_SUPPORT=n' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
+grep -q 'CONFIG_MMC_HS200_SUPPORT=y' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
+grep -q 'CONFIG_SPL_MMC_HS200_SUPPORT=y' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
+grep -q 'CONFIG_MMC_HS400_SUPPORT=n' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
+grep -q 'CONFIG_SPL_MMC_HS400_SUPPORT=n' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
+grep -q 'sdhci-caps-mask = <0x00000000 0x00040000>' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n.dts"
+if grep -q 'sdhci-caps =' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n.dts"; then
+  die 'production SD6HC already reports a 200 MHz base clock; do not override it'
 fi
-grep -q 'sdhci-caps-mask = <0x00000000 0x0004ff00>' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n.dts"
-grep -q 'sdhci-caps = <0x00000000 0x00003200>' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n.dts"
-grep -q 'max-frequency = <52000000>' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n.dts"
+grep -q 'max-frequency = <200000000>' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n.dts"
 grep -q 'cdns,phy-dqs-timing-delay-sd-ds = <0x00780000>' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n.dts"
 grep -q 'cdns,phy-gate-lpbk-ctrl-delay-sd-ds = <0x81a40040>' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n.dts"
 grep -q 'cdns,phy-dll-slave-ctrl-sd-ds = <0x00a000fe>' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n.dts"
 grep -q 'cdns,phy-dq-timing-delay-sd-ds = <0x28000001>' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n.dts"
 grep -q 'cdns,phy-dqs-timing-delay-emmc-sdr = <0x00780001>' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n.dts"
 grep -q 'cdns,ctrl-hrs10-lpbk-ctrl-delay-emmc-sdr = <0x00030000>' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n.dts"
-if grep -Eq 'mmc-hs(200|400)' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n.dts"; then
-  die 'PCF4N four-bit eMMC must not enable unvalidated HS200 or eight-bit-only HS400'
+grep -q 'mmc-hs200-1_8v' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n.dts"
+grep -q 'cdns,phy-dqs-timing-delay-emmc-hs200 = <0x00780004>' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n.dts"
+grep -q 'cdns,phy-dll-slave-ctrl-emmc-hs200 = <0x004d4d00>' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n.dts"
+grep -q 'cdns,ctrl-hrs10-lpbk-ctrl-delay-emmc-hs200 = <0x00090000>' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n.dts"
+if grep -q 'mmc-hs400' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n.dts"; then
+  die 'PCF4N four-bit eMMC must not enable eight-bit-only HS400'
 fi
+grep -q '^EMMC_MAX_FREQUENCY=200000000$' "$ROOT_DIR/config/board.env"
+grep -q '^EMMC_SOFTPHY_FREQUENCY=200000000$' "$ROOT_DIR/config/board.env"
 grep -q '^EMMC_VCC_UV=3300000$' "$ROOT_DIR/config/board.env"
 grep -q '^EMMC_VCCQ_UV=1800000$' "$ROOT_DIR/config/board.env"
 grep -q 'vmmc-supply = <&sd_emmc_power>' "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n.dts"
@@ -99,6 +107,11 @@ grep -q 'bus-width = <4>' "$ROOT_DIR/board/pcf4n/linux/socfpga_agilex5_pcf4n.dts
 grep -q 'reset-gpios = <&portb 3 GPIO_ACTIVE_LOW>' "$ROOT_DIR/board/pcf4n/linux/socfpga_agilex5_pcf4n.dts"
 grep -q 'vmmc-supply = <&sd_emmc_power>' "$ROOT_DIR/board/pcf4n/linux/socfpga_agilex5_pcf4n.dts"
 grep -q 'vqmmc-supply = <&emmc_io_1v8_reg>' "$ROOT_DIR/board/pcf4n/linux/socfpga_agilex5_pcf4n.dts"
+grep -q 'mmc-hs200-1_8v' "$ROOT_DIR/board/pcf4n/linux/socfpga_agilex5_pcf4n.dts"
+grep -q 'max-frequency = <200000000>' "$ROOT_DIR/board/pcf4n/linux/socfpga_agilex5_pcf4n.dts"
+if grep -q 'mmc-hs400' "$ROOT_DIR/board/pcf4n/linux/socfpga_agilex5_pcf4n.dts"; then
+  die 'Linux must not enable eight-bit-only HS400 on the four-bit board'
+fi
 grep -q 'ethernet-phy@1' "$ROOT_DIR/board/pcf4n/linux/socfpga_agilex5_pcf4n.dts"
 
 while IFS= read -r -d '' test_script; do

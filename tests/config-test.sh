@@ -5,7 +5,7 @@ ROOT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 # shellcheck source=/dev/null
 source "$ROOT_DIR/config/board.env"
 
-[[ "$BOARD_CONFIG_REVISION" == 7 ]]
+[[ "$BOARD_CONFIG_REVISION" == 9 ]]
 [[ "$HPS_DATA_UART" == 0 ]]
 [[ "$HPS_UPGRADE_UART" == 1 ]]
 [[ "$HPS_DEVELOPMENT_CONSOLE_UART" == 1 ]]
@@ -19,7 +19,8 @@ source "$ROOT_DIR/config/board.env"
 [[ "$HPS_USB0_CONTROLLER" == 0 ]]
 [[ "$HPS_USB1_CONTROLLER" == 1 ]]
 [[ "$EMMC_BUS_WIDTH" == 4 ]]
-[[ "$EMMC_MAX_FREQUENCY" == 52000000 ]]
+[[ "$EMMC_MAX_FREQUENCY" == 200000000 ]]
+[[ "$EMMC_SOFTPHY_FREQUENCY" == 200000000 ]]
 [[ "$EMMC_RESET_GPIO_GLOBAL" == 27 ]]
 [[ "$EMMC_RESET_GPIO_BANK" == 1 ]]
 [[ "$EMMC_RESET_GPIO_OFFSET" == 3 ]]

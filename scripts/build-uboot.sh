@@ -20,17 +20,6 @@ out="$BUILD_DIR/u-boot"
 generated="$WORK_DIR/generated/u-boot"
 mkdir -p "$out" "$generated"
 
-for patch in "$ROOT_DIR"/board/pcf4n/u-boot/patches/*.patch; do
-  [[ -e "$patch" ]] || continue
-  if git -C "$src" apply --reverse --check "$patch" >/dev/null 2>&1; then
-    log "U-Boot patch already applied: $(basename "$patch")"
-  else
-    log "applying U-Boot patch: $(basename "$patch")"
-    git -C "$src" apply --check "$patch"
-    git -C "$src" apply "$patch"
-  fi
-done
-
 cp "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n.dts" "$src/arch/arm/dts/"
 cp "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n-u-boot.dtsi" "$src/arch/arm/dts/"
 ln -sfn "$atf_bl31" "$src/bl31.bin"

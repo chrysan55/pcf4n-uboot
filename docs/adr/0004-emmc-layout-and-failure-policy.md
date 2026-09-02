@@ -1,6 +1,6 @@
 # ADR 0004: Simple GPT, kernel-last write, stop-on-failure
 
-- Status: Accepted
+- Status: Accepted; timing policy superseded by ADR 0009
 - Date: 2026-08-26
 
 ## Context
@@ -19,6 +19,9 @@ older image automatically.
 Use non-removable 4-bit eMMC at a maximum of 52 MHz; do not advertise HS200 in
 the first device tree. Reset the device through HPS GPIO27, represented as
 GPIO1/port B line 3 with active-low polarity, before card initialization.
+
+ADR 0009 replaces only this conservative first-bring-up timing choice after
+the installed device's 4-bit, 1.8 V HS200 capability was confirmed.
 
 ## Consequences
 

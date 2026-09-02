@@ -97,26 +97,18 @@ also a diagnostic workaround. Neither is a required FPGA-first setting.
   `h2f_reset`, keep traffic quiescent during bridge reset, and implement the
   warm-reset handshake where required. Leave unused bridges in reset.
 - Retain the normal HPS Reset Manager nodes and reset specifiers in the SPL,
-  U-Boot, and Linux device trees. Remove diagnostic reset bypasses after the
-  current timer/MMC failure is isolated.
+  U-Boot, and Linux device trees.
 - Load `u-boot.itb` only from the agreed QSPI offset; do not fall back to a
   preloaded RAM image.
 - Disable the Simics-only target inherited from Altera's base defconfig.
-- Enable detailed SPL boot errors during bring-up.
-- Print the SDM mailbox direct-mode return code and SPI-NOR probe return code.
-  Until the first complete boot succeeds, use single-line 25 MHz HPS-side
-  reads; this does not change the SDM's AS x4 FPGA-configuration mode.
-- Build bring-up TF-A with `SOCFPGA_UART_CONFIG=1`, `DEBUG=1`, and
-  `LOG_LEVEL=50`, and rebuild it from an isolated clean object directory so
-  UART0 objects cannot be reused accidentally.
-- Print checkpoints after FIT loading, SMMU setup, the SDM SSBL notification,
-  FIT FDT fixup, and immediately before entering BL31. Enable SPL FIT printing
-  so the loaded addresses are visible in the same UART capture.
-- In the current diagnostic iteration, print the BL33 entry words, both Agilex
-  5 DDR firewall DMI register sets (`0x18000800` and `0x18000a00`), UART1
-  firewall state, and EL2 registers in BL31 immediately before ERET. Emit raw
-  UART1 markers from U-Boot proper before stack setup, immediately before/after
-  SError unmasking, and around early FDT/driver-model/serial initialization.
+- Until production timing is validated, retain single-line 25 MHz HPS-side
+  QSPI reads; this does not change the SDM's AS x4 FPGA-configuration mode.
+- Build release TF-A with `SOCFPGA_UART_CONFIG=1`, `DEBUG=0`, and
+  `LOG_LEVEL=20`, and rebuild it from an isolated clean object directory so
+  UART0 or debug objects cannot be reused accidentally.
+- Build TF-A and U-Boot directly from their locked commits without downstream
+  source patches. Keep PCF4N differences in build settings, Kconfig fragments,
+  and board device trees.
 - Identify every programmed HEX by banner timestamp and SHA-256, and preserve
   the final PFG map with the JIC.
 
@@ -136,15 +128,18 @@ UART1 console routing is configuration, not a U-Boot driver variation:
   identical to the locked upstream revision. No direct-MMIO UART markers,
   base-address special cases, or reset bypasses are part of the final route.
 
+All temporary QSPI, SPL/BL31-handoff, BL33 preflight, timer/MMC, PHY, reset,
+entry, and serial probe tracing patches were removed after their corresponding
+faults were isolated. The build scripts no longer contain patch-application
+loops, making a clean source build an enforced release property.
+
 ## Consequences
 
-- A missing QSPI grant, unrecognized flash, or invalid flash node now fails at
-  the QSPI selection/probe stage instead of being disguised as a RAM-image
-  parse failure.
+- Boot failures now use the locked upstream TF-A/U-Boot messages; the verbose
+  bring-up-only checkpoints are no longer present.
 - The FPGA can reach user mode before HPS software starts.
-- During bring-up, BL31 debug/runtime/crash output is visible on UART1. This is
-  a diagnostic setting and must be removed together with the UART1 console
-  before that port is handed to the MCU upgrade protocol.
+- BL31 NOTICE and crash output remains visible on UART1. The UART1 console must
+  be disabled before that port is handed to the MCU upgrade protocol.
 - The JIC remains a cross-team artifact: the HPS repository supplies SPL and
   ITB, while the logic team supplies the matching `.sof`, ownership setting,
   partition map, and final Quartus output.
@@ -442,7 +437,7 @@ block I/O without claiming that the Linux driver's dynamically calculated
 high-speed values have been ported. It must be removed only after 4-bit 52 MHz
 read/write stress tests pass.
 
-## Final DTS-only eMMC outcome
+## DTS-only HS52 bring-up outcome (superseded by ADR 0009)
 
 Subsequent A/B testing superseded the temporary 400 kHz diagnostic profile.
 With the four-bit Legacy/SDR PHY tables and HS200/HS400 disabled, the locked
@@ -458,3 +453,8 @@ field and supplies 50 MHz (`sdhci-caps-mask` low cell `0x0004ff00`,
 `sdhci-caps` low cell `0x00003200`). This preserves the original driver and
 keeps the board-specific correction in data. ADR 0008 records the resulting
 four-bit HS52 profile and its remaining validation gate.
+
+After the installed device's four-bit, 1.8 V HS200 capability was confirmed,
+ADR 0009 superseded the operating-speed portion of this outcome. The current
+profile requires a 200 MHz SoftPHY handoff, removes the 50 MHz capability
+substitution, and enables HS200 without changing the locked U-Boot driver.
