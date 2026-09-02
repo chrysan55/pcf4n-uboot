@@ -47,7 +47,8 @@
 
 &gmac2 {
 	status = "okay";
-	phy-mode = "rgmii";
+	/* RTL8211FI supplies the required 2 ns delay on both RGMII clocks. */
+	phy-mode = "rgmii-id";
 	phy-handle = <&emac2_phy1>;
 	max-frame-size = <9000>;
 

@@ -16,7 +16,7 @@ These values were extracted from the reviewed PCF4N schematic. Items marked
 | eMMC reset | HPS GPIO27, package pin `AG123` | GPIO27 is GPIO1/`portb` line 3; use active-low `mmc-pwrseq-emmc` |
 | Ethernet | HPS EMAC2 direct RGMII | Enable `gmac2`; disable unused HPS GMAC nodes |
 | PHY | Realtek RTL8211F(D)(I), MDIO2 address 1 | Enable Realtek PHY and set `reg = <1>` under `gmac2/mdio` |
-| RGMII delay | Strap does not request an extra 2 ns | Start with `phy-mode = "rgmii"`; validate timing on hardware |
+| RGMII delay | Live RTL8211FI testing showed zero-delay RGMII corrupts every received frame; enabling both PHY clock delays eliminated CRC errors and passed DHCP/ping at 1 Gbps full duplex | Use `phy-mode = "rgmii-id"` in both U-Boot and Linux |
 | PHY reset | Board-level `RESET_OTHER_N` | Do not model an unverified U-Boot GPIO reset |
 | Clocks | HPS oscillator 25 MHz; PHY oscillator 25 MHz | Preserve 25 MHz oscillator setting |
 | UART0 | HPS UART0 connects to the MCU data channel | Enable it, but do not use it for boot logs |

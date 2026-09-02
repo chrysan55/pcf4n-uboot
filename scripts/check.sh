@@ -48,6 +48,11 @@ grep -q 'CONFIG_DESIGNWARE_APB_TIMER=n' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.conf
 grep -q 'CONFIG_SPL_SHOW_ERRORS=n' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
 grep -q 'CONFIG_SPL_FIT_PRINT=n' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
 grep -q 'CONFIG_SPL_RAM_DEVICE=n' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
+grep -q 'CONFIG_DWC_ETH_XGMAC=y' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
+grep -q 'CONFIG_DWC_ETH_XGMAC_SOCFPGA=y' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
+grep -q 'CONFIG_DM_ETH_PHY=y' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
+grep -q 'CONFIG_PHY_REALTEK=y' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
+grep -q 'CONFIG_RGMII=y' "$ROOT_DIR/board/pcf4n/u-boot/pcf4n.config.in"
 grep -q '^ATF_CONSOLE_UART=1$' "$ROOT_DIR/config/board.env"
 grep -q 'SOCFPGA_UART_CONFIG="$ATF_CONSOLE_UART"' "$ROOT_DIR/scripts/build-atf.sh"
 grep -q '^ATF_DEBUG=0$' "$ROOT_DIR/config/board.env"
@@ -113,6 +118,20 @@ if grep -q 'mmc-hs400' "$ROOT_DIR/board/pcf4n/linux/socfpga_agilex5_pcf4n.dts"; 
   die 'Linux must not enable eight-bit-only HS400 on the four-bit board'
 fi
 grep -q 'ethernet-phy@1' "$ROOT_DIR/board/pcf4n/linux/socfpga_agilex5_pcf4n.dts"
+for dts in \
+  "$ROOT_DIR/board/pcf4n/u-boot/socfpga_agilex5_pcf4n.dts" \
+  "$ROOT_DIR/board/pcf4n/linux/socfpga_agilex5_pcf4n.dts"; do
+  grep -A8 '^&gmac2' "$dts" | grep -q 'phy-mode = "rgmii-id"'
+done
+
+uboot_config="$BUILD_DIR/u-boot/.config"
+if [[ -f "$uboot_config" ]]; then
+  grep -q '^CONFIG_DWC_ETH_XGMAC=y$' "$uboot_config"
+  grep -q '^CONFIG_DWC_ETH_XGMAC_SOCFPGA=y$' "$uboot_config"
+  grep -q '^CONFIG_DM_ETH_PHY=y$' "$uboot_config"
+  grep -q '^CONFIG_PHY_REALTEK=y$' "$uboot_config"
+  grep -q '^CONFIG_RGMII=y$' "$uboot_config"
+fi
 
 while IFS= read -r -d '' test_script; do
   "$test_script"
